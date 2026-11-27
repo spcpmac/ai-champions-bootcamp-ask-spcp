@@ -109,12 +109,12 @@ def retrieve(domain: str, query: str, source_types: list[str] | None = None,
     return filter_context(hits)
 
 
-def format_context(hits: list[dict], public: bool = False) -> str:
-    """Numbered <source> blocks for the prompt. public=True hides internal ticket IDs (partner mode)."""
+def format_context(hits: list[dict]) -> str:
+    """Numbered <source> blocks for the prompt. Internal ticket IDs are hidden from the model and the UI."""
     blocks = []
     for i, h in enumerate(hits, 1):
         m = h["metadata"]
-        text = re.sub(r"\[Support ticket [A-Z]+-\d+ — ", "[Past resolved case — ", h["text"]) if public else h["text"]
+        text = re.sub(r"\[Support ticket [A-Z]+-\d+ — ", "[Past resolved case — ", h["text"])
         label = {"doc": "Official doc (LEGACY spec)" if is_legacy(m) else "Official doc", "ticket": "Historical ticket (synthetic)",
                  "slack": "Slack thread (synthetic)", "api_spec": "Myinfo API spec"}[m["source_type"]]
         blocks.append(f'<source id="{i}" type="{label}" title="{m.get("title", "")}">\n{text}\n</source>')

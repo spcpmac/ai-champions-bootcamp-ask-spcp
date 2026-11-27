@@ -27,8 +27,7 @@ def check_password() -> bool:
         st.session_state["password_attempted"] = True
 
     st.title(f"🔐 {APP_NAME}")
-    st.caption("Self-service integration help for Singpass & Corppass partners, with a mode for support officers. "
-               "Prototype for educational purposes.")
+    st.caption("Self-service integration help for Singpass & Corppass partners. Prototype for educational purposes.")
     st.text_input("Password", type="password", key="password", on_change=_submit)
     if st.session_state.get("password_attempted") and not st.session_state.get("password_correct"):
         st.error("😕 Incorrect password")

@@ -1,7 +1,7 @@
 # Ask Singpass: Better Partner Support Helper (POC)
 
 A password-protected Streamlit app that lets Singpass and Corppass partners help themselves with integration
-questions, with a **support officer mode** (sidebar toggle) for internal staff. It uses an LLM with RAG over the official developer docs, the Myinfo API spec and historical cases
+questions. It uses an LLM with RAG over the official developer docs, the Myinfo API spec and historical cases
 (synthetic in this POC).
 
 **Status:** deployed on Streamlit Community Cloud from this repo (`main`, Python 3.14). Pushing to `main` redeploys.
@@ -10,8 +10,8 @@ questions, with a **support officer mode** (sidebar toggle) for internal staff. 
 
 | Page | Use case |
 |---|---|
-| 💬 Ask the Assistant | Chat with cited answers, follow-up suggestions, and a support-request draft (partner) or partner-reply draft (officer) |
-| 🩺 Integration Troubleshooter | Form → ranked causes, fix checklist, contact-support / escalation advice, how others resolved it |
+| 💬 Ask the Assistant | Chat with cited answers, follow-up suggestions, and a support-request draft |
+| 🩺 Integration Troubleshooter | Form → ranked causes, fix checklist, contact-support advice, how others resolved it |
 | 🗺️ Integration Planner | Personalised onboarding or migration checklist, data-attribute table, plan Q&A |
 | 📊 Knowledge Insights | Case dashboards, Myinfo data catalogue, KB coverage |
 | ℹ️ About Us · 🧪 Methodology | Required documentation pages (Methodology has one flowchart per use case) |

@@ -1,12 +1,16 @@
-"""Shared Streamlit UI helpers: styling, sidebar (domain, audience, context), sources, notices."""
+"""Shared Streamlit UI helpers: styling, sidebar (domain, context), tables, sources, notices."""
 from __future__ import annotations
 
+import datetime as dt
+import html
 import re
 from typing import Callable
 
+import numpy as np
+import pandas as pd
 import streamlit as st
 
-from core.config import APP_SHORT, DOMAINS, LANGUAGES, SOURCE_TYPES
+from core.config import APP_SHORT, DOMAINS, LANGUAGES
 from core.guardrails import DISCLAIMER
 
 PARTNER_TYPES = ["Not specified", "Government agency", "Bank / financial institution", "Insurance",
@@ -16,10 +20,9 @@ APP_TYPES = ["Not specified", "Web application", "Mobile app (iOS/Android)", "Ba
              "Kiosk / counter"]
 EXPERIENCE = ["Not specified", "New to OIDC", "Familiar with OIDC/OAuth", "Experienced with FAPI 2.0"]
 
-# Partners see official docs, the API spec and sanitised past cases. Internal Slack threads are
-# officer-only.
-PARTNER_SOURCES = {"doc": "📘 Official docs", "api_spec": "🧩 Myinfo API spec",
-                   "ticket": "🎫 Past resolved cases"}
+# Source types partners can search and see. Internal Slack threads are never shown in the app.
+SOURCE_LABELS = {"doc": "📘 Official docs", "api_spec": "🧩 Myinfo API spec",
+                 "ticket": "🎫 Past resolved cases"}
 
 _CSS = """
 <style>
@@ -31,12 +34,57 @@ h3 {font-size: 1.15rem !important;}
 [data-testid="stChatMessage"] {padding: .5rem .75rem;}
 [data-testid="stExpander"] details summary p {font-size: .9rem;}
 [data-testid="stSidebarUserContent"] {padding-top: 1rem;}
+/* Read-only tables: cells wrap instead of truncating, and wide tables scroll rather than overflow. */
+.ask-table {overflow-x: auto; margin: .25rem 0 1rem;}
+.ask-table table {width: 100%; border-collapse: collapse; font-size: .88rem;}
+.ask-table th, .ask-table td {text-align: left; vertical-align: top; padding: .4rem .6rem;
+  border-bottom: 1px solid rgba(128,128,128,.25); white-space: normal; overflow-wrap: anywhere;}
+.ask-table th {font-weight: 600; border-bottom-width: 2px;}
+/* Flowcharts: cap the drawing size so it doesn't fill very large screens; shrink on narrow ones. */
+[data-testid="stGraphVizChart"] svg {width: 100%; max-width: 900px; height: auto;}
+/* Markdown tables (st.markdown) get the same wrapping and full width. */
+[data-testid="stMarkdownContainer"] table {width: 100%;}
+[data-testid="stMarkdownContainer"] th, [data-testid="stMarkdownContainer"] td {
+  white-space: normal; overflow-wrap: anywhere; vertical-align: top;}
 </style>
 """
 
 
 def apply_style() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
+
+
+def _cell(col: str, v, formats: dict[str, Callable[[object], str]]) -> str:
+    if v is None or (not isinstance(v, str) and pd.isna(v)):
+        return ""
+    if col in formats:
+        return formats[col](v)
+    if isinstance(v, (bool, np.bool_)):
+        return "✓" if v else ""
+    if isinstance(v, (pd.Timestamp, dt.date)):
+        return v.strftime("%Y-%m-%d")
+    if isinstance(v, (float, np.floating)):
+        return f"{v:.2f}".rstrip("0").rstrip(".")
+    return str(v)
+
+
+def table(df: pd.DataFrame, labels: dict[str, str] | None = None,
+          formats: dict[str, Callable[[object], str]] | None = None) -> None:
+    """Read-only table whose cells wrap. st.dataframe truncates long text, so use this instead.
+
+    labels renames column headers; formats maps a column to a function that renders its values.
+    """
+    labels, formats = labels or {}, formats or {}
+    head = "".join(f"<th>{html.escape(labels.get(c, str(c)))}</th>" for c in df.columns)
+    rows = []
+    for rec in df.itertuples(index=False):
+        cells = "".join(
+            f"<td>{html.escape(_cell(c, v, formats)).replace(chr(10), '<br>')}</td>"
+            for c, v in zip(df.columns, rec))
+        rows.append(f"<tr>{cells}</tr>")
+    # One line with no blank lines, so Markdown passes it through as raw HTML.
+    st.markdown(f'<div class="ask-table"><table><thead><tr>{head}</tr></thead>'
+                f'<tbody>{"".join(rows)}</tbody></table></div>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------------ state helpers
@@ -49,16 +97,6 @@ def cfg() -> dict:
     return DOMAINS[domain()]
 
 
-def is_officer() -> bool:
-    return bool(st.session_state.get("officer_mode", False))
-
-
-def audience() -> str:
-    return "officer" if is_officer() else "partner"
-
-
-def source_options() -> dict[str, str]:
-    return SOURCE_TYPES if is_officer() else PARTNER_SOURCES
 
 
 # ------------------------------------------------------------------ layout pieces
@@ -76,9 +114,6 @@ def sidebar() -> None:
             st.selectbox("Tech stack", LANGUAGES, key="ctx_lang")
             st.selectbox("Environment", ["Not specified", "Staging", "Production"], key="ctx_env")
             st.selectbox("Team experience", EXPERIENCE, key="ctx_exp")
-        st.toggle("🧑‍💼 Support officer mode", key="officer_mode",
-                  help="For Singpass/Corppass support staff: shows internal Slack threads and ticket IDs, "
-                       "and drafts replies to partners instead of support requests.")
         st.caption("⚠️ " + DISCLAIMER)
 
 
@@ -111,8 +146,7 @@ def important_notice() -> None:
 def page_header(title: str, caption: str) -> None:
     c = cfg()
     st.title(title)
-    mode = "Support officer mode" if is_officer() else "Partner self-service"
-    st.caption(f"{c['icon']} **{c['label']}** · {mode} · {caption}")
+    st.caption(f"{c['icon']} **{c['label']}** · {caption}")
 
 
 def suggestion_chips(options: list[str], key: str, on_pick: Callable[[str], None], label: str) -> None:
@@ -152,22 +186,18 @@ def _public_text(text: str) -> str:
 def render_sources(hits: list[dict], expanded: bool = False) -> None:
     if not hits:
         return
-    officer = is_officer()
-    labels = source_options() | {"ticket": SOURCE_TYPES["ticket"] if officer else "🎫 Past resolved case"}
     with st.expander(f"📚 Sources ({len(hits)})", expanded=expanded):
         for i, h in enumerate(hits, 1):
             m = h["metadata"]
-            badge = labels.get(m["source_type"], m["source_type"])
+            badge = SOURCE_LABELS.get(m["source_type"], m["source_type"])
             title = m.get("title", "")
             section = m.get("section", "")
             head = f"**[{i}] {title}**" + (f" › {section}" if section and section != title else "")
             if m.get("url"):
                 head += f" · [open doc]({m['url']})"
-            if officer and m["source_type"] in ("ticket", "slack"):
-                head += f" · `{m.get('source_id', '')}`"
             st.markdown(f"{head}  \n<small>{badge} · relevance {h.get('score', 0):.2f}</small>",
                         unsafe_allow_html=True)
-            text = h["text"] if officer else _public_text(h["text"])
+            text = _public_text(h["text"])
             st.code(text[:1200] + ("…" if len(text) > 1200 else ""), language="markdown", wrap_lines=True)
 
 

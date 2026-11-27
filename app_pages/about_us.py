@@ -6,6 +6,7 @@ import streamlit as st
 
 from core.config import APP_NAME, DOMAINS
 from core.retriever import kb_stats
+from core.ui import table
 
 st.title("ℹ️ About Us")
 st.caption(f"{APP_NAME}: proof of concept")
@@ -26,24 +27,21 @@ answers, a guided troubleshooter and a tailored integration plan at any time. Wh
 enough, the assistant drafts a well-structured support request, so the first message to support already
 contains what's needed.
 
-**Support officer mode** (sidebar toggle) adds internal Slack threads, ticket IDs, operational metrics and
-reply drafting for partner support staff.
-
 ### Objectives
 - **Self-service first:** partners resolve common integration issues without raising a ticket.
 - **Faster, consistent responses:** every answer cites the official documentation it is based on.
-- **Fewer escalations:** past resolutions are available to every partner and officer.
+- **Fewer escalations:** past resolutions are available to every partner.
 - **Better tickets:** when partners do need help, their requests arrive complete and free of secrets.
 
 ### Scope
 - Two integration domains, each with its own knowledge base, chosen with the sidebar switcher:
   **Singpass / Myinfo** and **Corppass / Myinfo Business**.
-- Users: developers at integrating organisations (default) and partner support officers (officer mode).
-- POC only. Past cases and Slack threads are **synthetic**, and no production data is used.
+- Users: developers at integrating organisations.
+- POC only. Past cases are **synthetic**, and no production data is used.
 """)
 
 st.markdown("### How the app meets the requirements")
-st.dataframe(pd.DataFrame([
+table(pd.DataFrame([
     ("Consolidate information",
      "One knowledge base per domain combining the official Singpass / Corppass developer docs, the Myinfo "
      "OpenAPI spec and past resolved cases, with every answer citing its source"),
@@ -57,19 +55,20 @@ st.dataframe(pd.DataFrame([
     ("Present information effectively",
      "Chat text with citations, interactive forms, checklists with progress bars, data tables "
      "(similar cases, data catalogue) and charts (Knowledge Insights)"),
-], columns=["Requirement", "How Ask Singpass delivers it"]), hide_index=True, width="stretch")
+], columns=["Requirement", "How Ask Singpass delivers it"]))
 
 st.markdown("### Data sources")
 rows = []
 for key, d in DOMAINS.items():
     s = kb_stats(key)
+    # Internal Slack threads are not shown to partners, so they are left out of these counts.
+    by_source = {k: v for k, v in s["by_source"].items() if k != "slack"}
     rows.append({"Domain": d["label"], "Official doc pages": s["doc_pages"],
-                 "Doc chunks": s["by_source"].get("doc", 0),
-                 "API-spec chunks": s["by_source"].get("api_spec", 0),
-                 "Tickets (synthetic)": s["by_source"].get("ticket", 0),
-                 "Slack threads (synthetic)": s["by_source"].get("slack", 0),
-                 "Total chunks": s["total"]})
-st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+                 "Doc chunks": by_source.get("doc", 0),
+                 "API-spec chunks": by_source.get("api_spec", 0),
+                 "Past cases (synthetic)": by_source.get("ticket", 0),
+                 "Total chunks": sum(by_source.values())})
+table(pd.DataFrame(rows))
 st.markdown("""
 | Source | Description | Trust level |
 |---|---|---|
@@ -77,13 +76,12 @@ st.markdown("""
 | [Corppass Docs](https://docs.corppass.gov.sg) | Public docs: Corppass Login, Myinfo Business, Authorization API (FAPI 2.0), CDP user guide, FAQs | Official |
 | Myinfo OpenAPI spec | Person and Entity data schemas | Official |
 | Zendesk-style tickets | Fictional cases grounded in documented error codes, FAQs and migration guides | Synthetic, for illustration |
-| Slack threads | Fictional support–engineering discussions | Synthetic, for illustration |
 """)
 
 st.markdown("### Features")
-st.dataframe(pd.DataFrame([
-    ("💬 Ask the Assistant", "Chat in natural language with cited answers, follow-up suggestions and source "
-                            "filters. Partners can draft a support request; officers can draft a partner reply",
+table(pd.DataFrame([
+    ("💬 Ask the Assistant", "Chat in natural language with cited answers, follow-up suggestions, source "
+                            "filters and a support-request draft",
      "Text, chat, expandable sources"),
     ("🩺 Integration Troubleshooter", "Form-based diagnosis: likely causes ranked by likelihood, a fix checklist, "
                                      "how others resolved similar issues, and when to contact support",
@@ -91,23 +89,19 @@ st.dataframe(pd.DataFrame([
     ("🗺️ Integration Planner", "Onboarding or migration plan tailored to the partner's scenario, with a progress "
                               "tracker, data-attribute table and plan Q&A", "Form, tabs, checklist, table, chat"),
     ("📊 Knowledge Insights", "Common issues and past resolutions, a searchable Myinfo data catalogue and KB "
-                             "coverage (officer mode adds escalation metrics)",
+                             "coverage",
                              "KPI tiles, charts, searchable tables"),
     ("🧭 Personalisation", "Optional non-PII context about your integration that tailors every answer",
      "Sidebar form"),
-    ("🧑‍💼 Support officer mode", "Internal Slack threads, ticket IDs, escalation metrics and partner-reply drafting",
-     "Sidebar toggle"),
     ("🛡️ Guardrails", "Automatic redaction of PII and secrets, prompt-injection filtering, grounded-only answers",
                      "Inline notices"),
-], columns=["Feature", "What it does", "Formats"]), hide_index=True, width="stretch")
+], columns=["Feature", "What it does", "Formats"]))
 
 st.markdown("""
 ### Limitations & disclaimer
 - Answers are AI-generated and can be wrong. Check them against the cited official documentation before
   acting on them or sending them to anyone.
-- In this POC, support officer mode is a simple toggle. A real deployment would put partner and officer
-  access behind separate authentication.
-- Historical cases are synthetic. In a production rollout they would come from sanitised Zendesk and Slack exports.
+- Historical cases are synthetic. In a production rollout they would come from sanitised Zendesk exports.
 - The knowledge base is a snapshot of the documentation taken when it was ingested. Re-run ingestion to
   pick up documentation changes.
 - Do not enter personal data, credentials or production tokens. Anything detected is redacted automatically,

@@ -26,11 +26,3 @@ def tickets(domain: str) -> pd.DataFrame:
     df["created_at"] = pd.to_datetime(df["created_at"])
     df["error_code"] = df["error_code"].fillna("(none)")
     return df
-
-
-@st.cache_data(show_spinner=False)
-def slack(domain: str) -> pd.DataFrame:
-    path = SYNTHETIC_DIR / f"{domain}_slack.jsonl"
-    if not path.exists():
-        return pd.DataFrame()
-    return pd.DataFrame([json.loads(l) for l in path.read_text().splitlines() if l.strip()])

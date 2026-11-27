@@ -8,16 +8,15 @@ from core.catalogue import data_catalogue
 from core.guardrails import scrub
 from core.prompts import BASE_RULES, IntegrationPlan, planner_system
 from core.retriever import format_context, retrieve
-from core.ui import (APP_TYPES, audience, cfg, domain, is_officer, page_header, profile_text, redaction_notice,
-                     render_sources, require_kb)
+from core.ui import (APP_TYPES, cfg, domain, page_header, profile_text, redaction_notice,
+                     render_sources, require_kb, table)
 
 page_header("🗺️ Integration Planner", "A step-by-step onboarding or migration plan tailored to your scenario")
 if not require_kb():
     st.stop()
 c = cfg()
 catalogue = data_catalogue(domain())
-officer = is_officer()
-key = f"plan_{domain()}_{audience()}"
+key = f"plan_{domain()}"
 
 with st.form("planner"):
     a, b, d = st.columns(3)
@@ -45,7 +44,7 @@ if go:
         hits = retrieve(domain(), query, source_types=["doc"], k=6)
         hits += retrieve(domain(), f"{version} {product} {' '.join(data_needed[:5])}",
                          source_types=["doc", "api_spec"], k=3)
-        hits += retrieve(domain(), f"{product} {version} common problems", source_types=["ticket", "slack"] if officer else ["ticket"], k=3)
+        hits += retrieve(domain(), f"{product} {version} common problems", source_types=["ticket"], k=3)
     seen, uniq = set(), []
     for h in hits:
         if h["text"] not in seen:
@@ -55,7 +54,7 @@ if go:
         try:
             plan = llm.chat_structured([
                 {"role": "system", "content": planner_system(c["label"])},
-                {"role": "user", "content": f"<sources>\n{format_context(uniq, public=not officer)}\n</sources>\n\nPartner profile: {profile}"},
+                {"role": "user", "content": f"<sources>\n{format_context(uniq)}\n</sources>\n\nPartner profile: {profile}"},
             ], IntegrationPlan)
         except Exception as e:  # noqa: BLE001
             st.error(f"Planning failed: {e}")
@@ -89,7 +88,7 @@ if state:
     if state["data"]:
         st.markdown("#### Data you asked for")
         sel = catalogue[catalogue["attribute"].isin(state["data"])]
-        st.dataframe(sel, hide_index=True, width="stretch")
+        table(sel)
         st.caption("Request only what the stated purpose needs (data minimisation, per Myinfo key principles).")
 
     render_sources(state["hits"])
@@ -101,14 +100,13 @@ if state:
     q = st.chat_input("e.g. What exactly do I need for the JWKS step?")
     if q:
         qc = scrub(q)
-        hits = retrieve(domain(), qc.text, k=5,
-                        source_types=None if officer else ["doc", "api_spec", "ticket"])
+        hits = retrieve(domain(), qc.text, k=5, source_types=["doc", "api_spec", "ticket"])
         plan_md = "\n".join(f"- [{it.phase}] {it.task}: {it.detail}" for it in plan.checklist)
         ans = llm.chat([
             {"role": "system", "content": f"You answer follow-up questions about a {c['label']} integration plan.\n"
                                           f"{BASE_RULES}"},
             {"role": "user", "content": f"Partner profile: {state['profile']}\n\nPlan:\n{plan_md}\n\n"
-                                        f"<sources>\n{format_context(hits, public=not officer)}\n</sources>\n\nQuestion: {qc.text}"},
+                                        f"<sources>\n{format_context(hits)}\n</sources>\n\nQuestion: {qc.text}"},
         ])
         state["qa"].append((qc.text, ans))
         st.rerun()

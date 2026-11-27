@@ -1,8 +1,4 @@
-"""UC1 — Ask the Assistant: conversational RAG with citations, follow-ups and drafting.
-
-Partner mode (default): self-service answers and a "draft support request" helper.
-Support officer mode: internal sources visible and a "draft partner reply" helper.
-"""
+"""UC1 — Ask the Assistant: conversational RAG with citations, follow-ups and a support-request draft."""
 from __future__ import annotations
 
 import re
@@ -11,24 +7,22 @@ import streamlit as st
 
 from core import llm
 from core.guardrails import looks_like_injection, scrub
-from core.prompts import REWRITE_SYSTEM, assistant_system, reply_draft_system, support_request_system
+from core.prompts import REWRITE_SYSTEM, assistant_system, support_request_system
 from core.retriever import format_context, retrieve
-from core.ui import (audience, cfg, domain, important_notice, is_officer, page_header, profile_text,
-                     redaction_notice, render_sources, require_kb, source_options, suggestion_chips)
+from core.ui import (SOURCE_LABELS, cfg, domain, important_notice, page_header, profile_text,
+                     redaction_notice, render_sources, require_kb, suggestion_chips)
 
 c = cfg()
-officer = is_officer()
 histories = st.session_state.setdefault("history", {})
 history: list[dict] = histories.setdefault(domain(), [])
-opts = source_options()
 
 # ---- header row: title on the left, compact toolbar on the right (bottom-aligned)
 head, b1, b2 = st.columns([6, 1.2, 1.2], vertical_alignment="bottom")
 with head:
     page_header("💬 Ask the Assistant", "Ask in plain language and get cited answers")
 with b1.popover("⚙️ Sources", width="stretch"):
-    sources = st.multiselect("Search in", list(opts), default=list(opts), format_func=opts.get,
-                             key=f"src_{domain()}_{audience()}")
+    sources = st.multiselect("Search in", list(SOURCE_LABELS), default=list(SOURCE_LABELS),
+                             format_func=SOURCE_LABELS.get, key=f"src_{domain()}")
 if b2.button("🧹 New chat", width="stretch", disabled=not history):
     history.clear()
     st.rerun()
@@ -52,33 +46,25 @@ def split_followups(answer: str) -> tuple[str, list[str]]:
 
 def draft(idx: int) -> None:
     msg = history[idx]
-    question = history[idx - 1]["content"] if idx > 0 else ""
     links = sorted({h["metadata"]["url"] for h in msg["hits"]
                     if h["metadata"].get("url") and h["metadata"]["source_type"] == "doc"})
     convo = "\n".join(f"{m['role']}: {m['content'][:800]}" for m in history[: idx + 1][-6:])
-    if officer:
-        system, user = reply_draft_system(c["label"]), (
-            f"Partner question:\n{question}\n\nVerified answer:\n{msg['content']}\n\n"
-            "Official documentation links:\n" + "\n".join(links))
-    else:
-        system, user = support_request_system(c["label"]), (
-            f"Partner context: {profile_text() or 'not provided'}\n\nConversation so far:\n{convo}\n\n"
-            "Relevant documentation already consulted:\n" + "\n".join(links))
+    system, user = support_request_system(c["label"]), (
+        f"Partner context: {profile_text() or 'not provided'}\n\nConversation so far:\n{convo}\n\n"
+        "Relevant documentation already consulted:\n" + "\n".join(links))
     with st.spinner("Drafting…"):
         msg["draft"] = llm.chat([{"role": "system", "content": system}, {"role": "user", "content": user}])
-        msg["draft_kind"] = audience()
 
 
 # ---- empty state
 if not history:
     st.markdown(f"Hi! Ask me anything about integrating with **{c['label']}**: flows, error codes, keys "
                 "and JWKS, Myinfo data, migrations, or the developer portal."
-                + ("" if officer else " Add details under **About your integration** in the sidebar "
-                                      "for answers tailored to your setup."))
+                " Add details under **About your integration** in the sidebar "
+                "for answers tailored to your setup.")
     suggestion_chips(c["sample_questions"], f"chips_start_{domain()}", ask, "Try asking")
 
 # ---- conversation
-draft_label = "✉️ Draft partner reply" if officer else "📨 Draft a support request"
 for i, msg in enumerate(history):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -87,12 +73,10 @@ for i, msg in enumerate(history):
         if msg["role"] != "assistant" or not msg.get("hits"):
             continue
         render_sources(msg["hits"])
-        if st.button(draft_label, key=f"draft_{domain()}_{audience()}_{i}", type="tertiary"):
+        if st.button("📨 Draft a support request", key=f"draft_{domain()}_{i}", type="tertiary"):
             draft(i)
-        if msg.get("draft") and msg.get("draft_kind") == audience():
-            title = ("✉️ Draft reply: review and edit before sending" if officer
-                     else "📨 Support request draft: remove anything sensitive before sending")
-            with st.expander(title, expanded=True):
+        if msg.get("draft"):
+            with st.expander("📨 Support request draft: remove anything sensitive before sending", expanded=True):
                 st.code(msg["draft"], language="markdown", wrap_lines=True)
 
 if history and history[-1]["role"] == "assistant":
@@ -132,14 +116,14 @@ with st.chat_message("assistant"):
             query = llm.chat([{"role": "system", "content": REWRITE_SYSTEM},
                               {"role": "user", "content": f"History:\n{convo}\n\nLatest: {clean.text}"}]).strip()
         st.write(f"🔎 Search query: `{query}`")
-        hits = retrieve(domain(), query, source_types=sources or list(opts))
+        hits = retrieve(domain(), query, source_types=sources or list(SOURCE_LABELS))
         status.update(label=f"Found {len(hits)} relevant sources", state="complete")
 
     messages = [{"role": "system",
-                 "content": assistant_system(c["label"], c["scope_hint"], profile_text(), audience())}]
+                 "content": assistant_system(c["label"], c["scope_hint"], profile_text())}]
     for m in history[-7:-1]:
         messages.append({"role": m["role"], "content": m["content"]})
-    messages.append({"role": "user", "content": f"<sources>\n{format_context(hits, public=not officer)}\n"
+    messages.append({"role": "user", "content": f"<sources>\n{format_context(hits)}\n"
                                                 f"</sources>\n\nQuestion: {clean.text}"})
     raw = st.write_stream(llm.chat_stream(messages))
     body, followups = split_followups(raw if isinstance(raw, str) else "".join(raw))
