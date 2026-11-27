@@ -1,0 +1,18 @@
+[
+  {
+    "domain": "Corppass / Myinfo Business",
+    "questions": 13,
+    "hit@6": "100%",
+    "MRR": 0.8,
+    "faithfulness": "100%",
+    "model": "gpt-6-luna"
+  },
+  {
+    "domain": "Singpass / Myinfo",
+    "questions": 13,
+    "hit@6": "100%",
+    "MRR": 0.85,
+    "faithfulness": "77%",
+    "model": "gpt-6-luna"
+  }
+]

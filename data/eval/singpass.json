@@ -1,0 +1,15 @@
+[
+ {"q": "What key types and curves are allowed in my JWKS?", "expect": "json-web-key-sets-jwks"},
+ {"q": "Can my JWKS include the d parameter?", "expect": "json-web-key-sets-jwks"},
+ {"q": "What claims go into the client assertion JWT and what should aud be?", "expect": "generation-of-client-assertion"},
+ {"q": "How do I compute the PKCE code_challenge?", "expect": "proof-key-for-code-exchange-pkce"},
+ {"q": "How do I build a DPoP proof JWT?", "expect": "demonstrating-proof-of-possession-dpop"},
+ {"q": "How do I send a pushed authorization request?", "expect": "1.-authorization-request"},
+ {"q": "What error parameters come back on the redirect when authentication fails?", "expect": "2.-handling-the-redirect"},
+ {"q": "How do I exchange the authorization code for tokens?", "expect": "3.-token-exchange"},
+ {"q": "Which checks must I perform when validating the ID token?", "expect": "4.-parsing-the-id-token"},
+ {"q": "When is CPF data unavailable due to maintenance?", "expect": "scheduled-downtimes"},
+ {"q": "Are custom scheme redirect URLs still supported?", "expect": "changelog"},
+ {"q": "How do I migrate an existing Myinfo v3 app?", "expect": "myinfo-v3-apps"},
+ {"q": "How do I create a production app in the developer portal?", "expect": "create-production-app"}
+]

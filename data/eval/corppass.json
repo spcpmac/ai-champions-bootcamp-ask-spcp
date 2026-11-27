@@ -1,0 +1,15 @@
+[
+ {"q": "What parameters are required in the PAR request?", "expect": "1.-pushed-authorization-request-par-endpoint"},
+ {"q": "Which values can authentication_context_type take?", "expect": "authentication-context-parameters"},
+ {"q": "What does invalid_dpop_proof mean on the token endpoint?", "expect": "3.-token-endpoint"},
+ {"q": "How is the Corppass ID token encrypted and signed?", "expect": "id-token"},
+ {"q": "How do I call the userinfo endpoint?", "expect": "4.-userinfo-endpoint"},
+ {"q": "What attributes are in auth_info?", "expect": "auth-info"},
+ {"q": "What fields does entity_info contain?", "expect": "entity-info"},
+ {"q": "Which TLS cipher suites are supported?", "expect": "supported-tls-cipher-suites"},
+ {"q": "What scopes are available for Myinfo Business entity data?", "expect": "entity-scopes"},
+ {"q": "Can I whitelist Corppass IP addresses?", "expect": "important-things-to-note"},
+ {"q": "Should I pin the Corppass TLS certificate?", "expect": "important-things-to-note"},
+ {"q": "I cannot log in to the Corppass Developer Portal", "expect": "corppass-developer-portal-cdp"},
+ {"q": "What key principles apply to Myinfo Business integrations?", "expect": "myinfo-business/key-principles"}
+]
