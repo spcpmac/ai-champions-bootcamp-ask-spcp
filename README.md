@@ -4,6 +4,8 @@ A password-protected Streamlit app that lets Singpass and Corppass partners help
 questions, with a **support officer mode** (sidebar toggle) for internal staff. It uses an LLM with RAG over the official developer docs, the Myinfo API spec and historical cases
 (synthetic in this POC).
 
+**Status:** deployed on Streamlit Community Cloud from this repo (`main`, Python 3.14). Pushing to `main` redeploys.
+
 **Domains** (switch in the sidebar; each has its own knowledge base): Singpass / Myinfo · Corppass / Myinfo Business
 
 | Page | Use case |
@@ -23,24 +25,24 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # set APP_PASSWORD 
 ## Build the knowledge bases (each domain independently)
 ```bash
 export OPENAI_API_KEY=sk-...                      # or rely on secrets.toml
-python scripts/fetch_docs.py   --domain singpass  # optional: refresh doc snapshot (already in data/raw)
-python scripts/seed_synthetic.py                  # synthetic tickets + Slack (already in data/synthetic)
-python scripts/ingest.py --domain singpass        # → data/chroma, collection kb_singpass
-python scripts/ingest.py --domain corppass        # → data/chroma, collection kb_corppass
-python scripts/eval.py   --domain singpass --judge   # optional: retrieval hit@k + faithfulness
+.venv/bin/python scripts/fetch_docs.py   --domain singpass  # optional: refresh doc snapshot (already in data/raw)
+.venv/bin/python scripts/seed_synthetic.py                  # synthetic tickets + Slack (already in data/synthetic)
+.venv/bin/python scripts/ingest.py --domain singpass        # → data/chroma, collection kb_singpass
+.venv/bin/python scripts/ingest.py --domain corppass        # → data/chroma, collection kb_corppass
+.venv/bin/python scripts/eval.py   --domain singpass --judge   # optional: retrieval hit@k + faithfulness
 ```
 `ingest.py --dry-run` only chunks the content, writing `data/chunks/<domain>.jsonl` for inspection. No API key is needed.
 `generate_synthetic.py --domain X --n 20` adds more LLM-generated synthetic tickets grounded in doc sections.
 
 ## Run
 ```bash
-streamlit run streamlit_app.py
+.venv/bin/streamlit run streamlit_app.py
 ```
 
 ## Deploy (Streamlit Community Cloud)
 1. Commit everything, **including `data/chroma/`**. The app only reads the index at runtime and never re-embeds.
 2. Create the app with main file `streamlit_app.py` and Python 3.14 (Advanced settings → Python version).
-3. Under **Secrets**, add `APP_PASSWORD`, `OPENAI_API_KEY` and optionally `OPENAI_CHAT_MODEL`.
+3. Under **Secrets**, add `APP_PASSWORD`, `OPENAI_API_KEY` and optionally `OPENAI_CHAT_MODEL` as top-level TOML keys (quoted values, no `[section]` header).
 
 `pysqlite3-binary` gets installed on Linux, and `streamlit_app.py` swaps it in for Cloud's old sqlite3, which Chroma can't use.
 
