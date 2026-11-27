@@ -16,7 +16,7 @@ questions, with a **support officer mode** (sidebar toggle) for internal staff. 
 
 ## Setup
 ```bash
-uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+uv venv --python 3.14 .venv && uv pip install --python .venv/bin/python -r requirements.txt
 cp .streamlit/secrets.toml.example .streamlit/secrets.toml   # set APP_PASSWORD and OPENAI_API_KEY
 ```
 
@@ -39,7 +39,7 @@ streamlit run streamlit_app.py
 
 ## Deploy (Streamlit Community Cloud)
 1. Commit everything, **including `data/chroma/`**. The app only reads the index at runtime and never re-embeds.
-2. Create the app with main file `streamlit_app.py` and Python 3.11.
+2. Create the app with main file `streamlit_app.py` and Python 3.14 (Advanced settings → Python version).
 3. Under **Secrets**, add `APP_PASSWORD`, `OPENAI_API_KEY` and optionally `OPENAI_CHAT_MODEL`.
 
 `pysqlite3-binary` gets installed on Linux, and `streamlit_app.py` swaps it in for Cloud's old sqlite3, which Chroma can't use.

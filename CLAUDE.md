@@ -8,10 +8,10 @@ This is a proof of concept for an AI Bootcamp project. It is a password-protecte
 
 ## Commands
 
-The venv is Python 3.11 at `.venv/`; Streamlit Cloud targets 3.11. Prefix commands with `.venv/bin/`.
+The venv is Python 3.14 at `.venv/`; Streamlit Cloud targets 3.14 (chosen in the app's Advanced settings; Cloud ignores runtime.txt). Prefix commands with `.venv/bin/`.
 
 ```bash
-uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+uv venv --python 3.14 .venv && uv pip install --python .venv/bin/python -r requirements.txt
 .venv/bin/streamlit run streamlit_app.py
 
 .venv/bin/python scripts/ingest.py --domain singpass|corppass [--dry-run]
